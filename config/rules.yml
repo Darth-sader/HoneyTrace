@@ -1,0 +1,247 @@
+# HoneyTrace detection rules.
+#
+# Every rule has a stable ID, a severity (potential impact) and a
+# confidence_weight (how strongly it supports the incident conclusion).
+# Severity and confidence are evaluated separately in the engine.
+#
+# Condition DSL (evaluated deterministically - no expression language):
+#   conditions:
+#     - all:              # all sub-conditions must match, order irrelevant
+#         - { event_type: file.open, target_is_decoy: true }
+#     - any: [...]        # at least one sub-condition matches
+#     - sequence: [...]   # sub-conditions must match in this order
+#   window_seconds: how far back events stay eligible
+#   threshold: how many completed pattern matches are required
+#   group_by: session_id | actor | source_ip | process | global
+#             (separate sessions/actors are always counted separately)
+#   suppression_seconds: minimum spacing between firings of this rule
+#
+# Sub-condition matchers: event_type (str or list), target_is_decoy (bool),
+# target_path_prefix, process_name, actor_uid, actor_username, source_ip,
+# details_field / details_value (exact match on an event details field).
+
+rules:
+  - id: R-DECOY-001
+    name: Decoy file accessed
+    description: >
+      A file registered in the HoneyTrace decoy inventory was opened or read.
+      Decoys have no business purpose; access is a strong interest signal.
+    enabled: true
+    severity: high
+    confidence_weight: 0.7
+    mitre: [T1083, T1552.001]
+    conditions:
+      - any:
+          - { event_type: file.open, target_is_decoy: true }
+          - { event_type: decoy.token_callback }
+    group_by: session_id
+    threshold: 1
+    window_seconds: 3600
+    suppression_seconds: 300
+    response: alert
+
+  - id: R-BULK-002
+    name: Bulk file enumeration
+    description: >
+      Unusually rapid file open/access activity from a single actor session,
+      consistent with automated enumeration rather than interactive use.
+    enabled: true
+    severity: medium
+    confidence_weight: 0.6
+    mitre: [T1083]
+    conditions:
+      - any:
+          - { event_type: file.open }
+          - { event_type: file.access }
+    group_by: session_id
+    threshold: 20
+    window_seconds: 10
+    suppression_seconds: 120
+    response: alert
+
+  - id: R-AUTH-003
+    name: SSH authentication failures burst
+    description: >
+      Multiple failed authentications from one source endpoint inside a short
+      window. Counts bursts instead of alerting per failed attempt.
+    enabled: true
+    severity: medium
+    confidence_weight: 0.5
+    mitre: [T1110]
+    conditions:
+      - all:
+          - { event_type: auth.login_failure }
+    group_by: source_ip
+    threshold: 5
+    window_seconds: 60
+    suppression_seconds: 300
+    response: alert
+
+  - id: R-SESSION-004
+    name: New remote session followed by decoy access
+    description: >
+      A newly opened remote session (SSH) was followed by interaction with a
+      decoy file. Ordered sequence; both events must share the session.
+    enabled: true
+    severity: high
+    confidence_weight: 0.85
+    mitre: [T1078, T1083]
+    conditions:
+      - sequence:
+          - { event_type: auth.session_open }
+          - { event_type: file.open, target_is_decoy: true }
+    group_by: session_id
+    threshold: 1
+    window_seconds: 1800
+    suppression_seconds: 600
+    response: alert
+
+  - id: R-RECON-005
+    name: Reconnaissance command chain
+    description: >
+      Ordered sequence of classic account/host enumeration commands
+      (whoami -> id -> uname) observed via audit execve telemetry.
+    enabled: true
+    severity: medium
+    confidence_weight: 0.6
+    mitre: [T1033, T1082]
+    conditions:
+      - sequence:
+          - { event_type: exec.command, process_name: whoami }
+          - { event_type: exec.command, process_name: id }
+          - { event_type: exec.command, process_name: uname }
+    group_by: session_id
+    threshold: 1
+    window_seconds: 120
+    suppression_seconds: 600
+    response: alert
+
+  - id: R-PRIV-006
+    name: Privilege escalation attempt
+    description: >
+      sudo/su/pkexec execution by a non-trusted account, or execution of a
+      setuid binary flagged by audit telemetry, in the lab context.
+    enabled: true
+    severity: high
+    confidence_weight: 0.65
+    mitre: [T1548, T1068]
+    conditions:
+      - any:
+          - { event_type: priv.escalation }
+    group_by: session_id
+    threshold: 1
+    window_seconds: 600
+    suppression_seconds: 300
+    response: alert
+
+  - id: R-PERSIST-007
+    name: Persistence mechanism touched
+    description: >
+      Modification or creation inside watched persistence locations (cron
+      directories, systemd user units, shell startup files) configured as
+      monitored or decoy-adjacent lab paths.
+    enabled: true
+    severity: high
+    confidence_weight: 0.6
+    mitre: [T1053, T1543.002, T1546.004]
+    conditions:
+      - any:
+          - { event_type: file.modify, details_field: persistence_scope, details_value: true }
+          - { event_type: file.create, details_field: persistence_scope, details_value: true }
+    group_by: session_id
+    threshold: 1
+    window_seconds: 600
+    suppression_seconds: 300
+    response: alert
+
+  - id: R-NET-008
+    name: Outbound connection to unexpected destination
+    description: >
+      An outbound connection from the lab context to a destination that is
+      neither loopback, a trusted network, nor an expected destination.
+    enabled: true
+    severity: medium
+    confidence_weight: 0.55
+    mitre: [T1041, T1071]
+    conditions:
+      - any:
+          - { event_type: net.connection, details_field: allowlisted, details_value: false }
+    group_by: session_id
+    threshold: 1
+    window_seconds: 600
+    suppression_seconds: 120
+    response: alert
+
+  - id: R-TAMPER-009
+    name: Monitored file tampering
+    description: >
+      A baseline-tracked monitored file was modified, replaced or deleted
+      without a corresponding allowlisted maintenance session.
+    enabled: true
+    severity: high
+    confidence_weight: 0.6
+    mitre: [T1565.001]
+    conditions:
+      - any:
+          - { event_type: baseline.change }
+    group_by: session_id
+    threshold: 1
+    window_seconds: 600
+    suppression_seconds: 120
+    response: alert
+
+  - id: R-CANARY-010
+    name: Canary token callback
+    description: >
+      A canary token embedded in a decoy was fetched from the beacon
+      listener. Proof of decoy interaction; attribution to a person requires
+      correlating with the process that rendered it.
+    enabled: true
+    severity: critical
+    confidence_weight: 0.9
+    mitre: [T1552.001]
+    conditions:
+      - all:
+          - { event_type: decoy.token_callback }
+    group_by: session_id
+    threshold: 1
+    window_seconds: 3600
+    suppression_seconds: 60
+    response: alert
+
+  - id: R-EXFIL-011
+    name: Suspected staged exfiltration
+    description: >
+      File staging into a temp path followed by an outbound connection from
+      the same session within the window.
+    enabled: true
+    severity: critical
+    confidence_weight: 0.7
+    mitre: [T1074.001, T1041]
+    conditions:
+      - sequence:
+          - { event_type: file.create, target_path_prefix: "/tmp" }
+          - { event_type: net.connection, details_field: direction, details_value: outbound }
+    group_by: session_id
+    threshold: 1
+    window_seconds: 600
+    suppression_seconds: 300
+    response: isolate
+
+  - id: R-OFFHOURS-012
+    name: Lab activity outside expected hours
+    description: >
+      Session activity during the configured odd-hours band. Disabled by
+      default; enable only after measuring your own baseline.
+    enabled: false
+    severity: low
+    confidence_weight: 0.35
+    mitre: [T1078]
+    conditions:
+      - any:
+          - { event_type: auth.session_open, details_field: odd_hours, details_value: true }
+    group_by: session_id
+    threshold: 1
+    window_seconds: 3600
+    suppression_seconds: 3600
+    response: log

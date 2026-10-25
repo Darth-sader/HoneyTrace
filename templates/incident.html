@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ incident.incident_id }} - HoneyTrace{% endblock %}
+{% block content %}
+<h1>{{ incident.incident_id }} <span class="pill pill-{{ incident.severity }}">{{ incident.severity }}</span></h1>
+<p>
+  <strong>{{ incident.title }}</strong> · status {{ incident.status }} ·
+  confidence {{ '%.0f%%' | format(incident.confidence * 100) }} ·
+  {{ incident.event_count }} event(s) ·
+  created {{ incident.created_at_utc }}
+  {% if incident.unread is defined and incident.unread %}<span class="dot-new" title="unread"></span>{% endif %}
+</p>
+
+<div class="action-row">
+  <a class="btn" href="{{ static_prefix or '' }}/timeline/{{ incident.incident_id }}">Report A: Attack timeline</a>
+  <a class="btn" href="{{ static_prefix or '' }}/profile/{{ incident.incident_id }}">Report B: Activity profile</a>
+</div>
+
+<section>
+  <h2>Detection explanation</h2>
+  {% for m in incident.rule_matches %}
+    <details {% if loop.first %}open{% endif %}>
+      <summary>{{ m.rule_id }} — {{ m.rule_name }}
+        <span class="pill pill-{{ m.severity }}">{{ m.severity }}</span>
+        confidence {{ '%.0f%%' | format(m.confidence * 100) }}</summary>
+      <p>{{ m.explanation }}</p>
+      <p class="muted">Threshold: {{ m.threshold.observed }} observed / {{ m.threshold.required }} required
+         within {{ m.threshold.window_seconds }}s. Fired at {{ m.fired_at_utc }}.</p>
+      {% if m.mitre %}<p class="muted">MITRE ATT&amp;CK (attached because this rule fired):
+        {% for t in m.mitre %}<code>{{ t }}</code> {% endfor %}</p>{% endif %}
+      {% if m.missing_evidence %}
+        <p><strong>Missing evidence:</strong></p>
+        <ul>{% for x in m.missing_evidence %}<li>{{ x }}</li>{% endfor %}</ul>
+      {% endif %}
+      <p><strong>Contributing events:</strong>
+        {% for eid in m.contributing_event_ids %}<code class="event-ref">{{ eid }}</code> {% endfor %}</p>
+    </details>
+  {% endfor %}
+</section>
+
+<section>
+  <h2>Evidence coverage <span class="muted">(sensor coverage, not proof of completeness)</span></h2>
+  <p>Score: {{ '%.0f%%' | format(coverage_score * 100) }} of expected sensors contributed.</p>
+  <ul>
+    <li>Contributing: {{ incident.evidence_coverage.contributing_sensors | join(', ') or 'none' }}</li>
+    <li>Missing: {{ incident.evidence_coverage.missing_sensors | join(', ') or 'none' }}</li>
+    <li>Degraded: {{ incident.evidence_coverage.degraded_sensors | join(', ') or 'none' }}</li>
+    <li>Unattributed file events: {{ incident.evidence_coverage.unattributed_events }}</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Uncertainty</h2>
+  <ul>
+    {% for u in incident.uncertainty %}<li>{{ u }}</li>{% else %}<li class="muted">No specific uncertainty recorded (still read the gaps section).</li>{% endfor %}
+  </ul>
+</section>
+
+<section>
+  <h2>Recommended next steps</h2>
+  <ol>
+    {% for s in incident.recommended_next_steps %}<li>{{ s }}</li>{% endfor %}
+  </ol>
+</section>
+
+{% if incident.response_actions %}
+<section>
+  <h2>Response actions</h2>
+  <table>
+    <thead><tr><th>Action</th><th>Status</th><th>Target</th><th>Reason</th></tr></thead>
+    <tbody>
+    {% for r in incident.response_actions %}
+      <tr><td>{{ r.action }}</td><td>{{ r.status }}</td><td>{{ r.target }}</td><td>{{ r.reason }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<section>
+  <h2>Causal graph <span class="muted">(evidence-linked; time-adjacency edges are explicitly inferred)</span></h2>
+  <p class="muted">{{ graph.edges | length }} edge(s), {{ graph.nodes | length }} node(s).</p>
+  <details>
+    <summary>Expand graph (JSON)</summary>
+    <pre>{{ graph | tojson(indent=2) }}</pre>
+  </details>
+</section>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - HoneyTrace{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<p class="muted">{{ event_count }} event(s), sorted by event time (collection time shown when later).</p>
+
+<form method="get" class="filters">
+  <input type="text" name="event_type" placeholder="event type" value="{{ filters.get('event_type', '') }}">
+  <input type="text" name="source" placeholder="source" value="{{ filters.get('source', '') }}">
+  <input type="text" name="actor" placeholder="actor" value="{{ filters.get('actor', '') }}">
+  <select name="severity">
+    <option value="">any severity</option>
+    {% for s in ['info', 'low', 'medium', 'high', 'critical'] %}
+      <option value="{{ s }}" {% if filters.get('severity') == s %}selected{% endif %}>{{ s }}+</option>
+    {% endfor %}
+  </select>
+  <input type="text" name="from" placeholder="from (ISO time)" value="{{ filters.get('from', '') }}">
+  <input type="text" name="to" placeholder="to (ISO time)" value="{{ filters.get('to', '') }}">
+  <button type="submit">Filter</button>
+</form>
+
+<section class="timeline">
+{% for ev in events %}
+  <article class="card sev-{{ ev.severity }}">
+    <div class="card-head">
+      <span class="pill pill-{{ ev.severity }}">{{ ev.severity }}</span>
+      <strong>{{ ev.event_type }}</strong>
+      <span class="muted">{{ ev.timestamp_utc }}</span>
+      {% if ev.late_arrival %}<span class="pill pill-late">late</span>{% endif %}
+      <span class="muted">source: {{ ev.source }}</span>
+      {% if ev.decoy_id %}<span class="pill pill-decoy">DECOY {{ ev.decoy_id }}</span>{% endif %}
+      {% if ev.incident_id %}<a class="muted" href="{{ static_prefix or '' }}/incident/{{ ev.incident_id }}">{{ ev.incident_id }}</a>{% endif %}
+    </div>
+    <details>
+      <summary>Evidence, process ancestry &amp; artifacts</summary>
+      <table class="kv">
+        <tr><th>Event ID</th><td><code>{{ ev.event_id }}</code></td></tr>
+        <tr><th>Collected at</th><td>{{ ev.observed_at_utc }}{% if ev.late_arrival %} (later than event time){% endif %}</td></tr>
+        <tr><th>Observation</th><td>{{ ev.observation }} · confidence {{ ev.confidence }}</td></tr>
+        <tr><th>Actor</th>
+            <td>{% if ev.actor %}{{ ev.actor.username or '?' }} uid={{ ev.actor.uid }} ip={{ ev.actor.source_ip or '-' }} tty={{ ev.actor.tty or '-' }}{% else %}<span class="muted">unknown</span>{% endif %}</td></tr>
+        <tr><th>Session</th><td>{{ ev.session_id or '-' }}</td></tr>
+        {% if ev.process %}
+        <tr><th>Process</th><td>pid {{ ev.process.pid }} · {{ ev.process.exe or '?' }} · started {{ ev.process.start_time or '?' }}</td></tr>
+        {% if ev.ancestry %}
+        <tr><th>Ancestry</th><td>{% for a in ev.ancestry %}{{ a[0] }}:{{ a[1] }} {{ '←' if not loop.last }}{% endfor %}</td></tr>
+        {% endif %}
+        {% endif %}
+        {% if ev.target %}<tr><th>Target</th><td>{{ ev.target.path }}{% if ev.target.sha256 %} · sha256 {{ ev.target.sha256 }}{% endif %}</td></tr>{% endif %}
+        {% if ev.network and ev.network.remote_addr %}
+        <tr><th>Network</th><td>{{ ev.network.remote_addr }}:{{ ev.network.remote_port }} {{ ev.network.direction }} (owner: {{ ev.network.owner_process or 'unknown' }})</td></tr>
+        {% endif %}
+        {% if ev.rule_matches %}<tr><th>Rules</th><td>{{ ev.rule_matches | join(', ') }}</td></tr>{% endif %}
+      </table>
+      {% if ev.details %}
+      <details><summary>Raw details</summary><pre>{{ ev.details | tojson(indent=2) }}</pre></details>
+      {% endif %}
+      {% if ev.artifacts %}
+      <p><strong>Artifacts:</strong></p>
+      <ul>
+        {% for a in ev.artifacts %}
+        <li>{{ a.type }} · {{ a.size }} bytes · sha256 <code>{{ a.sha256 }}</code>
+          {% if a.available %}(file present){% else %}<span class="warn">(file missing - artifact unavailable)</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </details>
+  </article>
+{% else %}
+  <p class="muted">No events match the current filters.</p>
+{% endfor %}
+</section>
+
+<section>
+  <h2>Evidence gaps</h2>
+  <ul>
+    <li>Unattributed file events: {{ gaps.unattributed_file_events }} — {{ gaps.note_unattributed }}</li>
+    <li>Dropped events: {{ gaps.dropped_events }}</li>
+    {% for g in gaps.sensor_gaps %}
+      <li>Sensor gap @ {{ g.timestamp_utc }}: {{ g.detail }}</li>
+    {% endfor %}
+    {% for p in gaps.artifacts_unavailable %}
+      <li>Artifact unavailable: {{ p }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

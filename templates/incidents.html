@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Incident centre - HoneyTrace{% endblock %}
+{% block content %}
+<h1>Incident centre</h1>
+<p class="muted">Unread and active incident counts are tracked separately. Opening an incident
+   marks it read but does NOT resolve it.</p>
+<table class="incident-table">
+  <thead>
+    <tr>
+      <th>Severity</th><th>ID</th><th>Status</th><th>Title</th>
+      <th>Actor</th><th>Confidence</th><th>Events</th><th>Last activity</th><th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for inc in incidents %}
+    <tr class="sev-{{ inc.severity }} {{ 'unread' if inc.unread else '' }}">
+      <td><span class="pill pill-{{ inc.severity }}">{{ inc.severity }}</span></td>
+      <td><a href="{{ static_prefix or '' }}/incident/{{ inc.incident_id }}">{{ inc.incident_id }}</a>
+          {% if inc.unread %}<span class="dot-new" title="unread"></span>{% endif %}</td>
+      <td>{{ inc.status }}</td>
+      <td>{{ inc.title }}</td>
+      <td>
+        {% if inc.actor %}
+          {{ inc.actor.username or '?' }}{% if inc.actor.uid is not none %} (uid {{ inc.actor.uid }}){% endif %}
+          {% if inc.actor.source_ip %}<br><span class="muted">{{ inc.actor.source_ip }}</span>{% endif %}
+        {% else %}<span class="muted">unknown</span>{% endif %}
+      </td>
+      <td>{{ '%.0f%%' | format(inc.confidence * 100) }}</td>
+      <td>{{ inc.event_count }}</td>
+      <td>{{ inc.last_event_utc or inc.updated_at_utc }}</td>
+      <td>
+        <a href="{{ static_prefix or '' }}/timeline/{{ inc.incident_id }}">Timeline</a>
+        <a href="{{ static_prefix or '' }}/profile/{{ inc.incident_id }}">Profile</a>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="9" class="muted">No incidents recorded.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

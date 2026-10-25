@@ -1,0 +1,115 @@
+# HoneyTrace main operator configuration.
+# Paths are resolved relative to the project root (the directory containing
+# this config/) unless they are absolute. Environment variables are NOT
+# expanded inside paths - keep the lab self-contained.
+
+# Operating mode. One of:
+#   observe  - collect and detect only; every response stays a logged proposal
+#   deceive  - additionally route lab sessions toward synthetic decoy content
+#   contain  - additionally allow scoped, reversible containment actions
+#              (requires `honeytrace arm --mode contain --confirm`)
+mode: observe
+
+paths:
+  # Directories monitored by the filesystem sensor. These must exist and must
+  # NOT be system directories (/etc, /usr, /bin, ...). Designate lab copies.
+  monitored:
+    - ./lab/home/labuser/Documents
+    - ./lab/home/labuser/Projects
+  # Root directory used for decoy placement. Decoys are ONLY ever written
+  # inside this tree or inside a monitored path explicitly listed in
+  # honeylist.yml. Nothing outside these boundaries is touched.
+  decoys: ./decoys
+  # Runtime evidence directory (journal, incidents, manifests, pcap, ...).
+  # Override freely; the daemon must be able to write here.
+  data: ./data
+  # HoneyTrace's own operational logs (kept strictly separate from evidence).
+  logs: ./data/logs
+
+detection:
+  # Bulk-access detection: more than `bulk_access_threshold` file open/access
+  # events from one actor/session inside `bulk_access_window_seconds`.
+  bulk_access_window_seconds: 10
+  bulk_access_threshold: 20
+  # Flag sessions active between 23:00-06:00 local time (off by default;
+  # tune against your own benign activity first).
+  odd_hours_enabled: false
+  odd_hours_start: "23:00"
+  odd_hours_end: "06:00"
+  # Incident grouping: events from one actor/session within this gap are
+  # folded into the same incident.
+  incident_gap_seconds: 900
+  # Duplicate suppression window per (event_type, path, actor).
+  dedup_window_seconds: 2
+
+network:
+  pcap_enabled: false
+  pcap_interface: "eth0"
+  # Rotate pcap every N seconds, keep at most pcap_ring_count files.
+  pcap_rotate_seconds: 10
+  pcap_ring_count: 12
+  pcap_snaplen: 96            # headers only; avoids payload collection
+  canary_enabled: false
+  canary_host: "127.0.0.1"    # loopback only unless you explicitly change it
+  canary_port: 8099
+  # Enrichment is optional, cached, and always marked as inferred.
+  reverse_dns_enabled: true
+  geoip_db_path: null         # e.g. ./assets/GeoLite2-City.mmdb (optional)
+  asn_db_path: null           # e.g. ./assets/GeoLite2-ASN.mmdb (optional)
+  rdap_enabled: false         # performs network queries when true
+
+audit:
+  enabled: true
+  # Tail the raw audit log; requires the service account to read it
+  # (CAP_AUDIT_READ / adm group) or audit rules installed by install_lab.sh.
+  log_file: /var/log/audit/audit.log
+  # Only events tagged with this key, or matching monitored paths, are used.
+  key: honeytrace
+
+auth:
+  enabled: true
+  # "journal" uses journalctl -f -o json; "file" tails auth.log.
+  source: auto                # auto | journal | file
+  auth_log: /var/log/auth.log
+  failed_login_window_seconds: 60
+  failed_login_threshold: 5
+
+process:
+  enabled: true
+  scan_interval_seconds: 2.0
+  # Environment variables captured for a NEW process. Everything else is
+  # redacted. Never add credential-bearing variables here.
+  env_allowlist:
+    - SSH_CONNECTION
+    - SSH_CLIENT
+    - SSH_TTY
+    - USER
+    - HOME
+    - LANG
+    - TERM
+
+response:
+  enabled: true               # evaluate response policies (proposals at minimum)
+  dry_run: true               # true = log what WOULD happen, change nothing
+  require_confirmation: true  # containment needs `honeytrace arm --confirm`
+  # Trusted identities are excluded from automatic response.
+  trusted_users: []           # e.g. [labadmin]
+  maintenance_sessions: []    # e.g. ["pts/0"] TTYs the owner works from
+
+containment:
+  # Only these are eligible for containment. The lab user must exist and be
+  # dedicated to the lab; containment rules are scoped to its UID only.
+  lab_user: labuser
+  firewall_backend: iptables  # iptables | nft
+  throttle_cpu_quota: 20      # percent, applied via systemd scope only
+
+health:
+  check_interval_seconds: 15
+  low_disk_warn_percent: 80
+  queue_warn_depth: 5000
+
+logging:
+  level: INFO
+  # HoneyTrace's own diagnostics - never incident evidence.
+  rotate_when_mb: 10
+  keep_files: 5

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Activity profile {{ profile_id if profile_id else '' }} - HoneyTrace{% endblock %}
+{% block content %}
+<h1>Activity profile <span class="muted">{{ actor_id }}</span></h1>
+<p class="muted">Pseudonymous handle derived from session/endpoint context. Built from
+   {{ generated_from.event_count }} event(s) of incident {{ generated_from.incident_id }}.</p>
+
+<section>
+  <h2>Identity context</h2>
+  <p>uid {{ identity_context.uid or '?' }} · account {{ identity_context.username or '?' }} ·
+     attribution {{ identity_context.attribution }}</p>
+  <p class="muted">{{ identity_context.caveat }}</p>
+</section>
+
+<section>
+  <h2>Session context</h2>
+  <table class="kv">
+    <tr><th>Sessions</th><td>{{ session_context.session_ids | join(', ') or 'unknown' }}</td></tr>
+    <tr><th>Login method</th><td>{{ session_context.login_method or 'unknown' }}</td></tr>
+    <tr><th>First / last seen</th><td>{{ session_context.first_seen or '?' }} → {{ session_context.last_seen or '?' }}</td></tr>
+    <tr><th>Tracked session state</th><td>{{ session_context.tracked_session_state }}</td></tr>
+    <tr><th>TTY</th><td>{{ session_context.tty or '-' }}</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>Network context <span class="muted">(supplementary, approximate)</span></h2>
+  <p class="muted">{{ network_context.enrichment_caveat }}</p>
+  <table>
+    <thead><tr><th>Endpoint</th><th>Connections</th><th>Owning process(es)</th><th>Enrichment</th></tr></thead>
+    <tbody>
+    {% for ep in network_context.endpoints %}
+      <tr>
+        <td>{{ ep.remote_addr }}</td>
+        <td>{{ ep.connections }}</td>
+        <td>{{ ep.processes | join(', ') or 'unknown' }}</td>
+        <td>{% if ep.enrichment %}rdns={{ ep.enrichment.reverse_dns or '?' }} geo={{ ep.enrichment.geoip_country or '?' }} asn={{ ep.enrichment.asn_org or ep.enrichment.asn_number or '?' }}{% else %}-{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="muted">No outbound/inbound endpoints observed.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p>Outbound attempts: {{ network_context.outbound_attempts }}</p>
+</section>
+
+<section>
+  <h2>Behavior summary</h2>
+  <p>Rapid enumeration observed: {{ behavior.rapid_enumeration_observed }} — <span class="muted">{{ behavior.rapid_enumeration_note }}</span></p>
+  <p>File modifications: {{ behavior.file_modifications }}</p>
+  <table class="kv">
+    <tr><th>Event counts</th><td>{% for k, v in behavior.event_counts.items() %}{{ k }}: {{ v }}{% if not loop.last %} · {% endif %}{% endfor %}</td></tr>
+    <tr><th>Most accessed paths</th>
+        <td>{% for p, n in behavior.most_accessed_paths %}<code>{{ p }}</code> ({{ n }}){% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
+  </table>
+  <details>
+    <summary>Alternative explanations (consider before concluding)</summary>
+    <ul>{% for a in behavior.alternative_explanations %}<li>{{ a }}</li>{% endfor %}</ul>
+  </details>
+</section>
+
+<section>
+  <h2>Decoy interest</h2>
+  {% if decoy_interest.decoys_touched %}
+  <ul>
+    {% for d in decoy_interest.decoys_touched %}
+    <li><code>{{ d.decoy_id }}</code> {{ d.path }} — {{ d.interactions | length }} interaction(s):
+      {% for i in d.interactions %}{{ i.event_type }}@{{ i.timestamp_utc }}{% if not loop.last %}, {% endif %}{% endfor %}</li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="muted">No decoys touched.</p>{% endif %}
+  {% if decoy_interest.token_callbacks %}
+  <p>Token callbacks: {{ decoy_interest.token_callbacks | length }}</p>
+  {% endif %}
+  <p class="muted">{{ decoy_interest.caveat }}</p>
+</section>
+
+<section>
+  <h2>Commands executed <span class="muted">(audit EXECVE telemetry when available)</span></h2>
+  {% if process_context.exec_commands %}
+  <table>
+    <thead><tr><th>Time</th><th>Command</th></tr></thead>
+    <tbody>
+    {% for c in process_context.exec_commands %}
+      <tr><td>{{ c.timestamp_utc }}</td><td><code>{{ c.argv | join(' ') }}</code></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No command executions recorded for this session (audit telemetry may be unavailable).</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Evidence map</h2>
+  <p>Confidence: {{ '%.0f%%' | format(evidence_map.confidence * 100) }}</p>
+  <details><summary>Direct observations ({{ evidence_map.direct_observations | length }})</summary>
+    <ul>{% for o in evidence_map.direct_observations %}<li>{{ o }}</li>{% endfor %}</ul></details>
+  <details><summary>Correlations ({{ evidence_map.correlations | length }})</summary>
+    <ul>{% for o in evidence_map.correlations %}<li>{{ o }}</li>{% endfor %}</ul></details>
+  <details><summary>Enrichment ({{ evidence_map.enrichment | length }})</summary>
+    <ul>{% for o in evidence_map.enrichment %}<li>{{ o }}</li>{% endfor %}</ul></details>
+</section>
+
+<section>
+  <h2>Limitations of this profile</h2>
+  <ul>{% for l in limitations %}<li>{{ l }}</li>{% endfor %}</ul>
+</section>
+{% endblock %}

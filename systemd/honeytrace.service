@@ -1,0 +1,49 @@
+[Unit]
+Description=HoneyTrace - Linux intrusion deception, detection and evidence framework
+Documentation=file:///opt/honeytrace/README.md
+After=network-online.target auditd.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Dedicated, non-root service account (created by scripts/install_lab.sh).
+# It needs the audit log (CAP_AUDIT_READ / adm) and, ONLY when pcap is
+# enabled, CAP_NET_ADMIN+CAP_NET_RAW. Remove the AmbientCapabilities lines
+# for the most restricted unprivileged deployment.
+User=honeytrace
+Group=honeytrace
+SupplementaryGroups=adm
+AmbientCapabilities=CAP_AUDIT_READ
+# CapabilityBoundingSet limits the service to exactly what it may use.
+CapabilityBoundingSet=CAP_AUDIT_READ
+NoNewPrivileges=true
+
+WorkingDirectory=/opt/honeytrace
+ExecStart=/opt/honeytrace/.venv/bin/honeytrace run --project-root /opt/honeytrace
+ExecStop=/bin/kill -TERM $MAINPID
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# State and evidence live in the configurable data directory.
+StateDirectory=honeytrace
+RuntimeDirectory=honeytrace
+
+# Hardening: the daemon is a sensor, not a utility knife.
+ProtectSystem=strict
+ProtectHome=read
+ReadWritePaths=/var/lib/honeytrace
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

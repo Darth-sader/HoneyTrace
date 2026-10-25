@@ -1,0 +1,62 @@
+# HoneyTrace decoy generation list.
+#
+# Decoys are placed ONLY inside `paths.decoys` or directories explicitly
+# listed here, and only inside designated lab paths (validated by the config
+# loader). All content is synthetic - values are plausible-looking but
+# generated, never copied from real data, and never usable credentials.
+
+decoy_groups:
+  - name: finance
+    directory: ./lab/home/labuser/Documents
+    enabled: true
+    items:
+      - type: pdf
+        name: "Invoice_AcmeLogistics_{n}.pdf"
+        count: 2
+        content_profile: invoice
+      - type: xlsx
+        name: "Q4_Forecast_DRAFT_{n}.xlsx"
+        count: 1
+        content_profile: budget
+      - type: csv
+        name: "salary_review_2026_{n}.csv"
+        count: 1
+        content_profile: salary
+
+  - name: credentials-bait
+    directory: ./lab/home/labuser/Documents
+    enabled: true
+    items:
+      - type: txt
+        name: "passwords_recovered.txt"
+        count: 1
+        content_profile: credentials
+        # Values below are generated, obviously-synthetic strings. They must
+        # never match a real account on this system.
+      - type: docx
+        name: "server_notes_{n}.docx"
+        count: 1
+        content_profile: notes
+
+  - name: project
+    directory: ./lab/home/labuser/Projects
+    enabled: true
+    items:
+      - type: zip
+        name: "project_archive_{n}.zip"
+        count: 1
+        content_profile: archive
+      - type: txt
+        name: "deployment_secrets_{n}.txt"
+        count: 1
+        content_profile: credentials
+
+# File mode applied to generated decoys (owner-writable, world-readable).
+# Decoys are also hash-tracked in the inventory so tampering is detected.
+file_mode: 0o644
+# Embed a unique canary URL in each decoy (requires canary_enabled in
+# honeytrace.yml for the listener; the URL is embedded either way).
+embed_tokens: true
+# Deterministic seed for reproducible demo content (null = random).
+# Set to an integer to regenerate identical decoys for evaluation runs.
+random_seed: null

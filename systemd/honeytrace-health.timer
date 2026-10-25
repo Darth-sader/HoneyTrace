@@ -1,0 +1,13 @@
+[Unit]
+Description=HoneyTrace health check timer
+Requires=honeytrace.service
+
+[Timer]
+# Every 5 minutes, catch stalled collectors and low storage early.
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=honeytrace-health.service
+
+[Install]
+WantedBy=timers.target

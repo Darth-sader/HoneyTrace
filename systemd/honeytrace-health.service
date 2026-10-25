@@ -1,0 +1,16 @@
+[Unit]
+Description=HoneyTrace health check (one-shot)
+
+[Service]
+Type=oneshot
+User=honeytrace
+Group=honeytrace
+WorkingDirectory=/opt/honeytrace
+# Quick diagnostics: config + dependency + evidence-integrity checks.
+# Findings land in HoneyTrace's operational log, never in the evidence.
+ExecStart=/opt/honeytrace/.venv/bin/honeytrace doctor --project-root /opt/honeytrace
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read
+ReadOnlyPaths=/opt/honeytrace
+ReadWritePaths=/var/lib/honeytrace

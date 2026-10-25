@@ -1,0 +1,12 @@
+type=DAEMON_START msg=audit(1728650000.000:4000): op=start ver=3.0.7 auid=4294967295 res=success
+type=SYSCALL msg=audit(1728650100.100:4567): arch=c000003e syscall=257 success=yes exit=3 a0=3 items=1 ppid=1234 pid=5678 auid=1000 uid=1000 gid=1000 tty=pts0 ses=5 comm="cat" exe="/usr/bin/cat" key="honeytrace"
+type=CWD msg=audit(1728650100.100:4567): cwd="/home/labuser/Documents"
+type=PATH msg=audit(1728650100.100:4567): item=0 name="/home/labuser/Documents/bait.pdf" inode=923456 dev=08:02 mode=0100644 ouid=1001 ogid=1001 rdev=00:00 nametype=NORMAL
+type=EXECVE msg=audit(1728650100.100:4567): argc=2 a0="cat" a1="bait.pdf"
+type=SYSCALL msg=audit(1728650100.300:4568): arch=c000003e syscall=2 success=no exit=-13 a0=55f2 items=1 ppid=1234 pid=5679 auid=1000 uid=1000 gid=1000 tty=pts0 ses=5 comm="cat" exe="/usr/bin/cat" key="honeytrace"
+type=PATH msg=audit(1728650100.300:4568): item=0 name=2F6574632F736861646F77 inode=5321 dev=08:02 mode=0100640 ouid=0 ogid=42 rdev=00:00 nametype=NORMAL
+type=SYSCALL msg=audit(1728650100.500:4569): arch=c000003e syscall=59 success=yes exit=0 a0=55f2 items=2 ppid=800 pid=5700 auid=1000 uid=1000 gid=1000 tty=pts0 ses=5 comm="whoami" exe="/usr/bin/whoami" key="honeytrace"
+type=EXECVE msg=audit(1728650100.500:4569): argc=1 a0="whoami"
+type=USER_AUTH msg=audit(1728650090.000:4560): pid=1200 uid=0 auid=1000 ses=5 msg='op=PAM:authentication acct="labuser" exe="/usr/sbin/sshd" hostname=? addr=203.0.113.44 terminal=ssh res=success'
+type=USER_START msg=audit(1728650090.100:4561): pid=1200 uid=0 auid=1000 ses=5 msg='op=PAM:session_open acct="labuser" exe="/usr/sbin/sshd" hostname=? addr=203.0.113.44 terminal=ssh res=success'
+type=CRED_ACQ msg=audit(1728650100.900:4570): pid=5800 uid=1000 auid=1000 ses=5 msg='op=PAM:setcred acct="root" exe="/usr/bin/sudo" hostname=? addr=? terminal=/dev/pts/0 res=success'

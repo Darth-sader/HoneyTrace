@@ -1,0 +1,62 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Runtime evidence, incidents, logs and captures (never commit collected data)
+data/*
+!data/.gitkeep
+decoys/*
+!decoys/.gitkeep
+lab/home/labuser/Documents/*
+!lab/home/labuser/Documents/.gitkeep
+lab/home/labuser/Projects/*
+!lab/home/labuser/Projects/.gitkeep
+
+# Local state, certificates & keys
+*.key
+*.pem
+*.pcap
+*.pcapng
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+
+# IDEs, editors and OS metadata
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Development IDE artifacts
+.zcodeignore
+.zcode/

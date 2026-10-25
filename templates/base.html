@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}HoneyTrace{% endblock %}</title>
+  <link rel="stylesheet" href="{{ static_prefix or '' }}/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🍯 HoneyTrace <span class="sub">lab deception &amp; detection</span></div>
+    <nav>
+      <a href="{{ static_prefix or '' }}/">Incidents</a>
+      <a href="{{ static_prefix or '' }}/health">Sensor health</a>
+    </nav>
+    <div class="badges">
+      <span class="badge badge-unread">{{ unread if unread is defined else 0 }} unread</span>
+      <span class="badge badge-active">{{ active if active is defined else 0 }} active</span>
+    </div>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    <p>HoneyTrace reads evidence read-only. Reports are reconstructions from available
+       sensors - see the evidence gaps section on every page. IPs and accounts are not identities.</p>
+  </footer>
+</body>
+</html>

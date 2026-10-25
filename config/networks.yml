@@ -1,0 +1,37 @@
+# Network baseline and allowlists.
+# These lists REDUCE false positives in detection and response. They are
+# trust declarations made by the operator, not observations.
+
+# Networks never treated as suspicious sources for lab events and never
+# automatically contained. Use CIDR notation.
+trusted_networks:
+  - 127.0.0.0/8
+  - ::1/128
+  - 192.168.0.0/16
+  - 10.0.0.0/8
+
+# Destinations the lab is expected to contact (updates, package mirrors).
+# Outbound connections elsewhere from the lab session become detections.
+expected_destinations:
+  - host: deb.debian.org
+    port: 80
+    protocol: tcp
+  - host: security.ubuntu.com
+    port: 80
+    protocol: tcp
+  - host: 8.8.8.8
+    port: 53
+    protocol: udp
+
+# Local services HoneyTrace itself runs (canary beacon, dashboard).
+local_services:
+  - { host: 127.0.0.1, port: 8099, purpose: canary }
+  - { host: 127.0.0.1, port: 8443, purpose: dashboard }
+
+# Exclusions for the network sensor: ignore local noise.
+excluded_processes:
+  - systemd-resolved
+  - dnsmasq
+
+# The subnet the lab lives in (used for scoping containment rules).
+lab_network: 192.168.122.0/24

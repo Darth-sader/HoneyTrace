@@ -1,0 +1,46 @@
+# Evidence retention and disk safeguards.
+# HoneyTrace enforces these limits on data it OWNS only. It never deletes
+# files outside its data directory, decoy manifest, or its own firewall
+# rules/artifacts.
+
+journal:
+  # Rotate events.jsonl when it exceeds this size...
+  max_segment_mb: 50
+  # ...keeping at most this many rotated segments (plus the active one).
+  max_segments: 20
+  # Checkpoint (signed hash-chain anchor) every N records.
+  checkpoint_every: 500
+
+pcap:
+  # Ring buffer sizing is also capped here; tcpdump -W must not exceed it.
+  max_total_mb: 200
+  max_files: 12
+
+reports:
+  # Keep the newest N generated HTML/JSON report bundles.
+  keep_reports: 20
+
+manifest:
+  # Artifact manifest is append-only JSONL; rotate with the same policy.
+  max_segment_mb: 20
+  max_segments: 10
+
+quota:
+  # Hard ceiling for the whole data/ directory. When exceeded, HoneyTrace
+  # stops writing new evidence (recording the drop) rather than deleting
+  # unrelated files, and raises a health alert.
+  data_dir_max_mb: 2048
+  # Warn (health alert + notification) when free space on the evidence
+  # filesystem drops below this percent.
+  free_space_warn_percent: 15
+  sweep_interval_seconds: 300
+
+export:
+  # Artifacts explicitly approved for case export (by suffix).
+  approved_artifact_suffixes:
+    - .jsonl
+    - .json
+    - .pcap
+    - .log
+    - .txt
+    - .zip
